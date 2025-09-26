@@ -164,3 +164,20 @@ static/
 # Test files
 test_*.py
 *_test.py
+
+# Backup files
+*.backup
+*.bak
+*~
+
+# Temporary files
+*.tmp
+*.temp
+
+# VS Code
+.vscode/
+
+# IDE files
+*.swp
+*.swo
+.idea/

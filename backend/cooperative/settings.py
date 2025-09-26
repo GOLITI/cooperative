@@ -1,24 +1,30 @@
-"""
-Django settings for cooperative project.
-Système de Gestion des Coopératives
-"""
+"""Django settings for the cooperative management platform."""
 
 from pathlib import Path
-from decouple import config
-import os
 
-# Build paths inside the project like this: BASE_DIR / 'subdir'.
+import environ
+
+
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-# SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = config('SECRET_KEY', default='django-insecure--x#$335)60l^i@r=n)*iv+%i*#l6z0x1w%9dum)x%y-sld&jic')
+env = environ.Env(
+    DJANGO_DEBUG=(bool, True),
+    DJANGO_ALLOWED_HOSTS=(list, []),
+    CORS_ALLOWED_ORIGINS=(list, []),
+    CSRF_TRUSTED_ORIGINS=(list, []),
+    DJANGO_TIME_ZONE=(str, 'Africa/Abidjan'),
+)
+environ.Env.read_env(BASE_DIR / '.env')
 
-# SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = config('DEBUG', default=True, cast=bool)
 
-ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='localhost,127.0.0.1,0.0.0.0', cast=lambda v: [s.strip() for s in v.split(',')])
+# Core configuration
+SECRET_KEY = env('DJANGO_SECRET_KEY', default='changeme-in-env')
+DEBUG = env('DJANGO_DEBUG')
+ALLOWED_HOSTS = env('DJANGO_ALLOWED_HOSTS')
+ADMIN_URL = env('DJANGO_ADMIN_URL', default='admin/')
 
-# Application definition
+
+# Applications
 DJANGO_APPS = [
     'django.contrib.admin',
     'django.contrib.auth',
@@ -26,78 +32,61 @@ DJANGO_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    'django.contrib.sites',  # Requis pour allauth
+    'django.contrib.sites',
+    'django.contrib.humanize',
 ]
 
 THIRD_PARTY_APPS = [
-    # API REST
     'rest_framework',
     'rest_framework.authtoken',
-    'drf_spectacular',
-    
-    # CORS pour React
+    'django_filters',
     'corsheaders',
-    
-    # Authentification
+    'drf_spectacular',
+    'crispy_forms',
+    'crispy_bootstrap5',
     'allauth',
     'allauth.account',
     'allauth.socialaccount',
-    
-    # Permissions
     'guardian',
-    
-    # Filtres
-    'django_filters',
-    
-    # Formulaires
-    'crispy_forms',
-    'crispy_tailwind',
-    
-    # Tâches asynchrones
-    'django_celery_beat',
-    'django_celery_results',
-    
-    # Outils de développement
-    'django_extensions',
-    'debug_toolbar',
 ]
 
 LOCAL_APPS = [
-    'accounts.apps.AccountsConfig',
-    'core.apps.CoreConfig',
-    'members.apps.MembersConfig',
-    'inventory.apps.InventoryConfig',
-    'sales.apps.SalesConfig',
-    'finance.apps.FinanceConfig',
-    'reports.apps.ReportsConfig',
-    'api.apps.ApiConfig',
+    'accounts',
+    'members',
+    'inventory',
+    'sales',
+    'finance',
+    'reports',
 ]
 
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
 
+
+# Middleware
 MIDDLEWARE = [
-    'debug_toolbar.middleware.DebugToolbarMiddleware',  # Debug toolbar
     'django.middleware.security.SecurityMiddleware',
-    'corsheaders.middleware.CorsMiddleware',  # CORS pour React
+    'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
-    'django.middleware.locale.LocaleMiddleware',  # Internationalisation
+    'corsheaders.middleware.CorsMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
-    'allauth.account.middleware.AccountMiddleware',  # Middleware allauth
+    'allauth.account.middleware.AccountMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
+
 
 ROOT_URLCONF = 'cooperative.urls'
 
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [],
+        'DIRS': [BASE_DIR / 'templates'],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
+                'django.template.context_processors.debug',
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
@@ -106,351 +95,163 @@ TEMPLATES = [
     },
 ]
 
+
 WSGI_APPLICATION = 'cooperative.wsgi.application'
+ASGI_APPLICATION = 'cooperative.asgi.application'
 
 
 # Database
-# https://docs.djangoproject.com/en/5.2/ref/settings/#databases
-
-# Configuration SQLite pour développement (temporaire)
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': env('POSTGRES_DB', default='cooperative'),
+        'USER': env('POSTGRES_USER', default='cooperative'),
+        'PASSWORD': env('POSTGRES_PASSWORD', default='cooperative'),
+        'HOST': env('POSTGRES_HOST', default='localhost'),
+        'PORT': env('POSTGRES_PORT', default='5432'),
+        'CONN_MAX_AGE': env.int('POSTGRES_CONN_MAX_AGE', default=60),
     }
 }
 
-# Configuration PostgreSQL (production)
-# DATABASES = {
-#     'default': {
-#         'ENGINE': 'django.db.backends.postgresql',
-#         'NAME': config('DB_NAME', default='cooperative_db'),
-#         'USER': config('DB_USER', default='postgres'),
-#         'PASSWORD': config('DB_PASSWORD', default='postgres'),
-#         'HOST': config('DB_HOST', default='localhost'),
-#         'PORT': config('DB_PORT', default='5432'),
-#     }
-# }
+
+# Authentication & permissions
+AUTH_USER_MODEL = 'accounts.User'
+SITE_ID = env.int('DJANGO_SITE_ID', default=1)
+
+AUTHENTICATION_BACKENDS = (
+    'django.contrib.auth.backends.ModelBackend',
+    'guardian.backends.ObjectPermissionBackend',
+)
+
+ACCOUNT_EMAIL_VERIFICATION = 'optional'
+ACCOUNT_LOGIN_METHODS = ['email']
+ACCOUNT_SIGNUP_FIELDS = ['email*', 'password1*', 'password2*']
+LOGIN_REDIRECT_URL = env('LOGIN_REDIRECT_URL', default='/')
+LOGOUT_REDIRECT_URL = env('LOGOUT_REDIRECT_URL', default='/')
 
 
 # Password validation
-# https://docs.djangoproject.com/en/5.2/ref/settings/#auth-password-validators
-
 AUTH_PASSWORD_VALIDATORS = [
-    {
-        'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator',
-    },
-    {
-        'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator',
-    },
-    {
-        'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator',
-    },
-    {
-        'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator',
-    },
+    {'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator'},
+    {'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator'},
+    {'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator'},
+    {'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator'},
 ]
 
 
 # Internationalization
-LANGUAGE_CODE = 'fr'
-TIME_ZONE = 'Africa/Abidjan'  # Fuseau horaire Afrique de l'Ouest
+LANGUAGE_CODE = env('DJANGO_LANGUAGE_CODE', default='fr-fr')
+TIME_ZONE = env('DJANGO_TIME_ZONE')
 USE_I18N = True
 USE_TZ = True
 
-LANGUAGES = [
-    ('fr', 'Français'),
-    ('en', 'English'),
-]
 
-LOCALE_PATHS = [
-    BASE_DIR / 'locale',
-]
-
-# Static files (CSS, JavaScript, Images)
+# Static & media files
 STATIC_URL = '/static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
-STATICFILES_DIRS = [
-    BASE_DIR / 'static',
-]
+STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
-# Media files
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
 
-# Default primary key field type
-DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-# Sites framework (requis pour allauth)
-SITE_ID = 1
+# Email & notifications
+EMAIL_BACKEND = env(
+    'EMAIL_BACKEND',
+    default='django.core.mail.backends.smtp.EmailBackend',
+)
+DEFAULT_FROM_EMAIL = env('DEFAULT_FROM_EMAIL', default='noreply@example.com')
+SERVER_EMAIL = env('SERVER_EMAIL', default='server@example.com')
 
-# Configuration Cache (temporairement local pour les tests)
-CACHES = {
-    'default': {
-        'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
-        'LOCATION': 'unique-snowflake',
-    }
-}
 
-# Configuration Redis Cache (pour production)
-# CACHES = {
-#     'default': {
-#         'BACKEND': 'django_redis.cache.RedisCache',
-#         'LOCATION': config('REDIS_URL', default='redis://127.0.0.1:6379/1'),
-#         'OPTIONS': {
-#             'CLIENT_CLASS': 'django_redis.client.DefaultClient',
-#         }
-#     }
-# }
-
-# Session storage 
-SESSION_ENGINE = 'django.contrib.sessions.backends.db'
-# SESSION_ENGINE = 'django.contrib.sessions.backends.cache'  # Pour Redis
-# SESSION_CACHE_ALIAS = 'default'
-
-# Django REST Framework
+# REST framework & Spectacular
 REST_FRAMEWORK = {
-    'DEFAULT_AUTHENTICATION_CLASSES': [
-        'rest_framework.authentication.TokenAuthentication',
+    'DEFAULT_AUTHENTICATION_CLASSES': (
         'rest_framework.authentication.SessionAuthentication',
-    ],
-    'DEFAULT_PERMISSION_CLASSES': [
+        'rest_framework.authentication.TokenAuthentication',
+    ),
+    'DEFAULT_PERMISSION_CLASSES': (
         'rest_framework.permissions.IsAuthenticated',
-    ],
-    'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
-    'PAGE_SIZE': 20,
-    'DEFAULT_FILTER_BACKENDS': [
+    ),
+    'DEFAULT_FILTER_BACKENDS': (
         'django_filters.rest_framework.DjangoFilterBackend',
         'rest_framework.filters.SearchFilter',
         'rest_framework.filters.OrderingFilter',
-    ],
+    ),
     'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
+    'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
+    'PAGE_SIZE': 25,
 }
 
-# Spectacular settings (Documentation API)
 SPECTACULAR_SETTINGS = {
-    'TITLE': 'API Système de Gestion des Coopératives',
-    'DESCRIPTION': '''
-    ## 🏢 API REST Complète pour la Gestion des Coopératives
-    
-    Cette API fournit un système complet de gestion pour les coopératives agricoles et artisanales, incluant :
-    
-    ### 🔐 **Authentification & Membres**
-    - Gestion des utilisateurs avec rôles et permissions
-    - Système de membres avec types d'adhésion
-    - Authentification par token sécurisée
-    
-    ### 📦 **Inventaire & Produits**  
-    - Gestion des produits et catégories
-    - Suivi des stocks en temps réel
-    - Mouvements d'entrée et sortie
-    
-    ### 💰 **Ventes & Commerce**
-    - Système de vente complet
-    - Gestion des clients
-    - Paiements et facturation
-    
-    ### 🏦 **Finance & Comptabilité**
-    - Comptabilité en partie double
-    - Prêts aux membres avec workflow
-    - Épargne avec calcul d'intérêts
-    - Rapports financiers automatisés
-    
-    ### 📊 **Fonctionnalités Avancées**
-    - Statistiques et analyses
-    - Filtres et recherches avancées
-    - Pagination automatique
-    - Validation des données
-    
-    ---
-    
-    **🔑 Authentification requise :** `Authorization: Token your_token_here`
-    
-    **📝 GitHub :** [https://github.com/GOLITI/cooperative](https://github.com/GOLITI/cooperative)
-    ''',
+    'TITLE': 'Cooperative API',
+    'DESCRIPTION': 'API REST pour la plateforme de gestion des coopératives.',
     'VERSION': '1.0.0',
     'SERVE_INCLUDE_SCHEMA': False,
-    'CONTACT': {
-        'name': 'Équipe de Développement Coopérative',
-        'url': 'https://github.com/GOLITI/cooperative',
-        'email': 'dev@cooperative.com'
-    },
-    'LICENSE': {
-        'name': 'MIT License',
-        'url': 'https://opensource.org/licenses/MIT'
-    },
-    'EXTERNAL_DOCS': {
-        'description': 'Documentation complète sur GitHub',
-        'url': 'https://github.com/GOLITI/cooperative/blob/main/README.md'
-    },
-    'TAGS': [
-        {
-            'name': 'authentification',
-            'description': '🔐 Gestion des utilisateurs, login/logout, tokens'
-        },
-        {
-            'name': 'membres',
-            'description': '👥 CRUD membres, types adhésion, cotisations'
-        },
-        {
-            'name': 'inventaire',
-            'description': '📦 Produits, catégories, stock, mouvements'
-        },
-        {
-            'name': 'ventes',
-            'description': '💰 Ventes, clients, lignes, paiements'
-        },
-        {
-            'name': 'finance',
-            'description': '🏦 Comptabilité, prêts, épargne, transactions'
-        }
-    ],
-    'SERVERS': [
-        {
-            'url': 'http://localhost:8002',
-            'description': 'Serveur de développement local'
-        },
-        {
-            'url': 'https://api.cooperative.com',
-            'description': 'Serveur de production'
-        }
-    ],
-    'SECURITY': [
-        {
-            'tokenAuth': []
-        }
-    ],
-    'COMPONENTS': {
-        'securitySchemes': {
-            'tokenAuth': {
-                'type': 'apiKey',
-                'in': 'header',
-                'name': 'Authorization',
-                'description': 'Format: `Token your_token_here`'
-            }
-        }
-    },
-    'SWAGGER_UI_SETTINGS': {
-        'deepLinking': True,
-        'persistAuthorization': True,
-        'displayOperationId': True,
-        'defaultModelsExpandDepth': 2,
-        'defaultModelExpandDepth': 2,
-    },
-    'REDOC_UI_SETTINGS': {
-        'hideDownloadButton': False,
-        'theme': {
-            'colors': {
-                'primary': {
-                    'main': '#1976d2'
-                }
-            }
-        }
-    }
+    'CONTACT': {'email': env('API_CONTACT_EMAIL', default='tech@example.com')},
 }
 
-# CORS settings pour React
-CORS_ALLOWED_ORIGINS = [
-    "http://localhost:3000",  # Create React App
-    "http://127.0.0.1:3000",
-    "http://localhost:5173",  # Vite React dev server
-    "http://127.0.0.1:5173",
-]
 
+# CORS / CSRF
+CORS_ALLOWED_ORIGINS = env.list('CORS_ALLOWED_ORIGINS', default=[])
+if not CORS_ALLOWED_ORIGINS and DEBUG:
+    CORS_ALLOWED_ORIGINS = ['http://localhost:5173', 'http://127.0.0.1:5173']
+
+CSRF_TRUSTED_ORIGINS = env.list('CSRF_TRUSTED_ORIGINS', default=[])
+if not CSRF_TRUSTED_ORIGINS and DEBUG:
+    CSRF_TRUSTED_ORIGINS = ['http://localhost:5173', 'http://127.0.0.1:5173']
 CORS_ALLOW_CREDENTIALS = True
 
-# Django Allauth Configuration
-AUTHENTICATION_BACKENDS = [
-    'django.contrib.auth.backends.ModelBackend',
-    'allauth.account.auth_backends.AuthenticationBackend',
-    'guardian.backends.ObjectPermissionBackend',
-]
 
-# Configuration Allauth (nouvelle syntaxe)
-ACCOUNT_SIGNUP_FIELDS = ['email*', 'username*', 'password1*', 'password2*']
-ACCOUNT_EMAIL_VERIFICATION = 'optional'
-ACCOUNT_RATE_LIMITS = {
-    'login_failed': '5/5m',  # 5 tentatives par 5 minutes
-}
+# Guardian settings
+ANONYMOUS_USER_NAME = 'anonymous'
 
-# Django Crispy Forms
-CRISPY_ALLOWED_TEMPLATE_PACKS = 'tailwind'
-CRISPY_TEMPLATE_PACK = 'tailwind'
 
-# Celery Configuration
-CELERY_BROKER_URL = config('CELERY_BROKER_URL', default='redis://127.0.0.1:6379/0')
-CELERY_RESULT_BACKEND = config('CELERY_RESULT_BACKEND', default='redis://127.0.0.1:6379/0')
+# Crispy forms
+CRISPY_ALLOWED_TEMPLATE_PACKS = 'bootstrap5'
+CRISPY_TEMPLATE_PACK = 'bootstrap5'
+
+
+# Celery (defaults, detailed configuration in celery.py)
+CELERY_BROKER_URL = env('CELERY_BROKER_URL', default='redis://localhost:6379/0')
+CELERY_RESULT_BACKEND = env('CELERY_RESULT_BACKEND', default='redis://localhost:6379/0')
 CELERY_ACCEPT_CONTENT = ['json']
 CELERY_TASK_SERIALIZER = 'json'
 CELERY_RESULT_SERIALIZER = 'json'
+CELERY_TASK_DEFAULT_QUEUE = env('CELERY_TASK_DEFAULT_QUEUE', default='default')
+CELERY_TASK_TIME_LIMIT = env.int('CELERY_TASK_TIME_LIMIT', default=900)
+CELERY_TASK_SOFT_TIME_LIMIT = env.int('CELERY_TASK_SOFT_TIME_LIMIT', default=600)
 CELERY_TIMEZONE = TIME_ZONE
+CELERY_BEAT_SCHEDULE = {}
 
-# Logging Configuration
+
+# Logging
 LOGGING = {
     'version': 1,
     'disable_existing_loggers': False,
     'formatters': {
         'verbose': {
-            'format': '{levelname} {asctime} {module} {process:d} {thread:d} {message}',
+            'format': '[{levelname}] {asctime} {name}: {message}',
             'style': '{',
         },
     },
     'handlers': {
-        'file': {
-            'level': 'INFO',
-            'class': 'logging.FileHandler',
-            'filename': BASE_DIR / 'logs' / 'cooperative.log',
-            'formatter': 'verbose',
-        },
         'console': {
-            'level': 'INFO',
             'class': 'logging.StreamHandler',
             'formatter': 'verbose',
         },
     },
-    'loggers': {
-        'django': {
-            'handlers': ['file', 'console'],
-            'level': 'INFO',
-            'propagate': True,
-        },
-        'cooperative': {
-            'handlers': ['file', 'console'],
-            'level': 'INFO',
-            'propagate': True,
-        },
+    'root': {
+        'handlers': ['console'],
+        'level': env('DJANGO_LOG_LEVEL', default='INFO'),
     },
 }
 
-# Debug Toolbar Configuration
-if DEBUG:
-    INTERNAL_IPS = [
-        '127.0.0.1',
-        'localhost',
-    ]
 
-# Security Settings (Production)
-if not DEBUG:
-    SECURE_BROWSER_XSS_FILTER = True
-    SECURE_CONTENT_TYPE_NOSNIFF = True
-    SECURE_HSTS_INCLUDE_SUBDOMAINS = True
-    SECURE_HSTS_SECONDS = 31536000
-    SECURE_REDIRECT_EXEMPT = []
-    SECURE_SSL_REDIRECT = True
-    SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
-    USE_TZ = True
-    
-    # Sentry Configuration pour le monitoring en production
-    import sentry_sdk
-    from sentry_sdk.integrations.django import DjangoIntegration
-    from sentry_sdk.integrations.celery import CeleryIntegration
-    
-    sentry_sdk.init(
-        dsn=config('SENTRY_DSN', default=''),
-        integrations=[
-            DjangoIntegration(),
-            CeleryIntegration(),
-        ],
-        traces_sample_rate=0.1,
-        send_default_pii=True,
-    )
+if DEBUG:
+    INSTALLED_APPS.append('debug_toolbar')
+    MIDDLEWARE.insert(1, 'debug_toolbar.middleware.DebugToolbarMiddleware')
+    INTERNAL_IPS = env.list('DJANGO_INTERNAL_IPS', default=['127.0.0.1'])
+
+
+DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'

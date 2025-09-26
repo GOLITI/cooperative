@@ -4,8 +4,4 @@ from django.apps import AppConfig
 class AccountsConfig(AppConfig):
     default_auto_field = 'django.db.models.BigAutoField'
     name = 'accounts'
-    verbose_name = 'Comptes et Authentification'
-
-    def ready(self):
-        # Importer les signaux
-        import accounts.signals
+    verbose_name = 'Gestion des comptes'
