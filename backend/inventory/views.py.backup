@@ -1,0 +1,416 @@
+"""
+Vues API pour la gestion de l'inventaire.
+"""
+from rest_framework import viewsets, permissions, status, filters
+from rest_framework.decorators import action
+from rest_framework.response import Response
+from django_filters.rest_framework import DjangoFilterBackend
+from django.db.models import Count, Sum, F, Q, Avg
+from django.utils import timezone
+from datetime import timedelta
+from decimal import Decimal
+
+from .models import (
+    Product, ProductCategory, Unit, StockMovement
+)
+from .serializers import (
+    ProductListSerializer, ProductDetailSerializer, ProductCreateUpdateSerializer,
+    CategorySerializer, UnitSerializer, StockMovementSerializer,
+    InventoryStatsSerializer, StockAlertSerializer
+)
+from accounts.permissions import (
+    BaseCooperativePermission, CanViewInventory, CanManageInventory
+)
+
+
+class CategoryViewSet(viewsets.ModelViewSet):
+    """
+    ViewSet pour la gestion des catégories de produits.
+    """
+    queryset = ProductCategory.objects.all()
+    serializer_class = CategorySerializer
+    permission_classes = [BaseCooperativePermission]
+    filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
+    filterset_fields = ['is_active']
+    search_fields = ['name', 'description']
+    ordering_fields = ['name', 'created_at']
+    ordering = ['name']
+    
+    def get_permissions(self):
+        """Permissions spécifiques par action."""
+        if self.action in ['list', 'retrieve']:
+            permission_classes = [CanViewInventory]
+        elif self.action in ['create', 'update', 'partial_update', 'destroy']:
+            permission_classes = [CanManageInventory]
+        else:
+            permission_classes = [BaseCooperativePermission]
+        
+        return [permission() for permission in permission_classes]
+    
+    def destroy(self, request, *args, **kwargs):
+        """Empêcher la suppression si des produits utilisent cette catégorie."""
+        instance = self.get_object()
+        if instance.products.exists():
+            return Response(
+                {
+                    'error': 'Impossible de supprimer cette catégorie car des produits l\'utilisent.'
+                },
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        return super().destroy(request, *args, **kwargs)
+
+
+class UnitViewSet(viewsets.ModelViewSet):
+    """
+    ViewSet pour la gestion des unités de mesure.
+    """
+    queryset = Unit.objects.all()
+    serializer_class = UnitSerializer
+    permission_classes = [BaseCooperativePermission]
+    filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
+    filterset_fields = ['is_active', 'type']
+    search_fields = ['name', 'abbreviation']
+    ordering_fields = ['name', 'type']
+    ordering = ['type', 'name']
+    
+    def get_permissions(self):
+        """Permissions spécifiques par action."""
+        if self.action in ['list', 'retrieve']:
+            permission_classes = [CanViewInventory]
+        elif self.action in ['create', 'update', 'partial_update', 'destroy']:
+            permission_classes = [CanManageInventory]
+        else:
+            permission_classes = [BaseCooperativePermission]
+        
+        return [permission() for permission in permission_classes]
+
+
+# SupplierViewSet sera ajouté plus tard quand le modèle Supplier sera créé
+
+
+class ProductViewSet(viewsets.ModelViewSet):
+    """
+    ViewSet pour la gestion des produits.
+    """
+    queryset = Product.objects.select_related(
+        'category', 'unit'
+    ).prefetch_related('movements')
+    
+    permission_classes = [BaseCooperativePermission]
+    filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
+    filterset_fields = {
+        'category': ['exact'],
+
+        'is_active': ['exact'],
+        'expiration_tracking': ['exact'],
+        'batch_tracking': ['exact'],
+        'quantity_in_stock': ['gte', 'lte', 'exact']
+    }
+    search_fields = [
+        'name', 'sku', 'barcode', 'description'
+    ]
+    ordering_fields = [
+        'name', 'sku', 'quantity_in_stock', 'unit_price', 'created_at'
+    ]
+    ordering = ['-created_at']
+    
+    def get_permissions(self):
+        """Permissions spécifiques par action."""
+        if self.action in ['list', 'retrieve', 'stats', 'alerts', 'low_stock']:
+            permission_classes = [CanViewInventory]
+        elif self.action in ['create', 'update', 'partial_update', 'destroy', 'adjust_stock']:
+            permission_classes = [CanManageInventory]
+        else:
+            permission_classes = [BaseCooperativePermission]
+        
+        return [permission() for permission in permission_classes]
+    
+    def get_serializer_class(self):
+        """Sérializeur selon l'action."""
+        if self.action == 'list':
+            return ProductListSerializer
+        elif self.action in ['create', 'update', 'partial_update']:
+            return ProductCreateUpdateSerializer
+        else:
+            return ProductDetailSerializer
+    
+    def get_queryset(self):
+        """Filtrer selon les paramètres."""
+        queryset = super().get_queryset()
+        
+        # Filtrer par statut du stock
+        stock_status = self.request.query_params.get('stock_status')
+        if stock_status == 'low':
+            queryset = queryset.filter(
+                quantity_in_stock__lte=F('minimum_stock')
+            )
+        elif stock_status == 'out':
+            queryset = queryset.filter(quantity_in_stock__lte=0)
+        elif stock_status == 'good':
+            queryset = queryset.filter(
+                quantity_in_stock__gt=F('minimum_stock') * 2
+            )
+        
+        # Filtrer par prix
+        min_price = self.request.query_params.get('min_price')
+        max_price = self.request.query_params.get('max_price')
+        
+        if min_price:
+            queryset = queryset.filter(unit_price__gte=min_price)
+        if max_price:
+            queryset = queryset.filter(unit_price__lte=max_price)
+        
+        return queryset
+    
+    @action(detail=False, methods=['get'])
+    def stats(self, request):
+        """Statistiques de l'inventaire."""
+        # Statistiques de base
+        total_products = Product.objects.count()
+        active_products = Product.objects.filter(is_active=True).count()
+        categories_count = ProductCategory.objects.filter(is_active=True).count()
+        suppliers_count = 0  # Sera ajouté quand le modèle Supplier sera créé
+        
+        # Valeur totale du stock
+        total_stock_value = Product.objects.filter(is_active=True).aggregate(
+            total=Sum(F('quantity_in_stock') * F('unit_price'))
+        )['total'] or Decimal('0.00')
+        
+        # Alertes de stock
+        low_stock_products = Product.objects.filter(
+            is_active=True,
+            quantity_in_stock__lte=F('minimum_stock'),
+            quantity_in_stock__gt=0
+        ).count()
+        
+        out_of_stock_products = Product.objects.filter(
+            is_active=True,
+            quantity_in_stock__lte=0
+        ).count()
+        
+        # Produits par catégorie
+        products_by_category = dict(
+            Product.objects.filter(is_active=True)
+            .values('category__name')
+            .annotate(count=Count('id'))
+            .values_list('category__name', 'count')
+        )
+        
+        # Top produits par valeur
+        top_products = Product.objects.filter(is_active=True).annotate(
+            stock_value=F('quantity_in_stock') * F('unit_price')
+        ).order_by('-stock_value')[:5]
+        
+        top_products_by_value = [
+            {
+                'id': p.id,
+                'name': p.name,
+                'sku': p.sku,
+                'stock_value': p.stock_value
+            }
+            for p in top_products
+        ]
+        
+        # Mouvements récents
+        recent_movements = StockMovement.objects.select_related(
+            'product', 'performed_by'
+        ).order_by('-created_at')[:10]
+        
+        recent_movements_data = [
+            {
+                'id': m.id,
+                'product_name': m.product.name,
+                'movement_type': m.movement_type,
+                'quantity': m.quantity,
+                'date': m.movement_date,
+                'performed_by': m.performed_by.get_full_name() if m.performed_by else None
+            }
+            for m in recent_movements
+        ]
+        
+        stats = {
+            'total_products': total_products,
+            'active_products': active_products,
+            'categories_count': categories_count,
+            'suppliers_count': suppliers_count,
+            'total_stock_value': total_stock_value,
+            'low_stock_products': low_stock_products,
+            'out_of_stock_products': out_of_stock_products,
+            'products_by_category': products_by_category,
+            'top_products_by_value': top_products_by_value,
+            'recent_movements': recent_movements_data
+        }
+        
+        serializer = InventoryStatsSerializer(stats)
+        return Response(serializer.data)
+    
+    @action(detail=False, methods=['get'])
+    def alerts(self, request):
+        """Alertes de stock."""
+        alerts = []
+        
+        # Produits en rupture de stock
+        out_of_stock = Product.objects.filter(
+            is_active=True,
+            quantity_in_stock__lte=0
+        )
+        
+        for product in out_of_stock:
+            alerts.append({
+                'product_id': product.id,
+                'product_name': product.name,
+                'sku': product.sku,
+                'current_stock': product.quantity_in_stock,
+                'minimum_stock': product.minimum_stock,
+                'alert_type': 'out_of_stock',
+                'days_until_stockout': 0
+            })
+        
+        # Produits avec stock faible
+        low_stock = Product.objects.filter(
+            is_active=True,
+            quantity_in_stock__lte=F('minimum_stock'),
+            quantity_in_stock__gt=0
+        )
+        
+        for product in low_stock:
+            # Estimer les jours avant rupture basé sur les sorties récentes
+            thirty_days_ago = timezone.now() - timedelta(days=30)
+            avg_daily_usage = product.stock_movements.filter(
+                movement_type='out',
+                movement_date__gte=thirty_days_ago
+            ).aggregate(
+                avg=Avg('quantity')
+            )['avg'] or Decimal('0')
+            
+            days_until_stockout = None
+            if avg_daily_usage > 0:
+                days_until_stockout = int(product.quantity_in_stock / avg_daily_usage)
+            
+            alerts.append({
+                'product_id': product.id,
+                'product_name': product.name,
+                'sku': product.sku,
+                'current_stock': product.quantity_in_stock,
+                'minimum_stock': product.minimum_stock,
+                'alert_type': 'low_stock',
+                'days_until_stockout': days_until_stockout
+            })
+        
+        serializer = StockAlertSerializer(alerts, many=True)
+        return Response(serializer.data)
+    
+    @action(detail=False, methods=['get'])
+    def low_stock(self, request):
+        """Produits avec stock faible."""
+        low_stock_products = Product.objects.filter(
+            is_active=True,
+            quantity_in_stock__lte=F('minimum_stock')
+        ).select_related('category', 'unit')
+        
+        page = self.paginate_queryset(low_stock_products)
+        if page is not None:
+            serializer = ProductListSerializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
+        
+        serializer = ProductListSerializer(low_stock_products, many=True)
+        return Response(serializer.data)
+    
+    @action(detail=True, methods=['post'])
+    def adjust_stock(self, request, pk=None):
+        """Ajuster le stock d'un produit."""
+        product = self.get_object()
+        new_quantity = request.data.get('quantity')
+        reason = request.data.get('reason', 'Ajustement manuel')
+        notes = request.data.get('notes', '')
+        
+        if new_quantity is None:
+            return Response(
+                {'error': 'La quantité est requise.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        try:
+            new_quantity = Decimal(str(new_quantity))
+            if new_quantity < 0:
+                return Response(
+                    {'error': 'La quantité ne peut pas être négative.'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+        except (ValueError, TypeError):
+            return Response(
+                {'error': 'Quantité invalide.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Créer un mouvement d'ajustement
+        StockMovement.objects.create(
+            product=product,
+            movement_type='adjustment',
+            quantity=new_quantity,
+            movement_date=timezone.now(),
+            reason=reason,
+            notes=f"Ancien stock: {product.quantity_in_stock}. {notes}".strip(),
+            performed_by=request.user
+        )
+        
+        # Mettre à jour le stock
+        old_quantity = product.quantity_in_stock
+        product.quantity_in_stock = new_quantity
+        product.save()
+        
+        return Response({
+            'message': 'Stock ajusté avec succès.',
+            'old_quantity': old_quantity,
+            'new_quantity': new_quantity,
+            'difference': new_quantity - old_quantity
+        })
+
+
+class StockMovementViewSet(viewsets.ModelViewSet):
+    """
+    ViewSet pour la gestion des mouvements de stock.
+    """
+    queryset = StockMovement.objects.select_related(
+        'product', 'performed_by'
+    ).prefetch_related('product__category', 'product__unit')
+    
+    serializer_class = StockMovementSerializer
+    permission_classes = [BaseCooperativePermission]
+    filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
+    filterset_fields = {
+        'product': ['exact'],
+        'movement_type': ['exact'],
+        'movement_date': ['gte', 'lte'],
+        'performed_by': ['exact']
+    }
+    search_fields = [
+        'product__name', 'product__sku', 'reason', 'reference', 
+        'batch_number', 'notes'
+    ]
+    ordering_fields = ['movement_date', 'quantity', 'created_at']
+    ordering = ['-movement_date']
+    
+    def get_permissions(self):
+        """Permissions spécifiques par action."""
+        if self.action in ['list', 'retrieve']:
+            permission_classes = [CanViewInventory]
+        elif self.action in ['create', 'update', 'partial_update', 'destroy']:
+            permission_classes = [CanManageInventory]
+        else:
+            permission_classes = [BaseCooperativePermission]
+        
+        return [permission() for permission in permission_classes]
+    
+    def perform_create(self, serializer):
+        """Associer l'utilisateur qui effectue le mouvement."""
+        serializer.save(performed_by=self.request.user)
+    
+    def destroy(self, request, *args, **kwargs):
+        """Empêcher la suppression des mouvements (intégrité des données)."""
+        return Response(
+            {
+                'error': 'La suppression des mouvements de stock n\'est pas autorisée pour préserver l\'intégrité des données.'
+            },
+            status=status.HTTP_403_FORBIDDEN
+        )

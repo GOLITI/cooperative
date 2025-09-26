@@ -1,0 +1,45 @@
+# Django et extensions principales
+Django==5.1.1
+djangorestframework==3.15.2
+django-cors-headers==4.4.0
+django-filter==24.3
+django-crispy-forms==2.3
+crispy-tailwind==0.5.0
+
+# Base de données et cache
+psycopg2-binary==2.9.9
+redis==5.1.1
+django-redis==5.4.0
+
+# Authentification et permissions
+django-allauth==65.0.2
+django-guardian==2.4.0
+
+# Tâches asynchrones
+celery==5.4.0
+django-celery-beat==2.7.0
+django-celery-results==2.5.1
+
+# Images et fichiers
+Pillow==10.4.0
+
+# Rapports et export
+reportlab==4.2.2
+openpyxl==3.1.5
+WeasyPrint==62.3
+
+# Utilitaires de développement
+django-extensions==3.2.3
+django-debug-toolbar==4.4.6
+
+# Monitoring et déploiement
+sentry-sdk[django]==2.14.0
+gunicorn==23.0.0
+whitenoise==6.8.1
+
+# API et documentation
+drf-spectacular==0.27.2
+
+# Validation et sérialisation
+python-decouple==3.8
+python-dateutil==2.9.0
