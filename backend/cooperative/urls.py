@@ -36,6 +36,9 @@ urlpatterns = [
     # API des ventes
     path('api/sales/', include('sales.api_urls')),
     
+    # API financière
+    path('api/finance/', include('finance.api_urls')),
+    
     # Documentation API
     path('api/schema/', SpectacularAPIView.as_view(), name='schema'),
     path('api/docs/', SpectacularSwaggerView.as_view(url_name='schema'), name='swagger-ui'),
