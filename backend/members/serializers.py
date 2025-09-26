@@ -82,14 +82,16 @@ class MembershipHistorySerializer(serializers.ModelSerializer):
     """Sérialiseur pour l'historique d'adhésion."""
     
     member_name = serializers.CharField(source='member.get_full_name', read_only=True)
-    membership_type_name = serializers.CharField(source='membership_type.name', read_only=True)
+    old_type_name = serializers.CharField(source='old_type.name', read_only=True)
+    new_type_name = serializers.CharField(source='new_type.name', read_only=True)
+    changed_by_name = serializers.CharField(source='changed_by.get_full_name', read_only=True)
     
     class Meta:
         model = MembershipHistory
         fields = [
-            'id', 'member', 'member_name', 'membership_type', 
-            'membership_type_name', 'start_date', 'end_date', 
-            'status', 'notes', 'created_at'
+            'id', 'member', 'member_name', 'old_type', 'old_type_name',
+            'new_type', 'new_type_name', 'change_date', 'reason', 
+            'changed_by', 'changed_by_name', 'created_at'
         ]
         read_only_fields = ['created_at']
 
@@ -113,10 +115,10 @@ class MemberListSerializer(serializers.ModelSerializer):
     
     def get_age(self, obj):
         """Calculer l'âge du membre."""
-        if obj.birth_date:
+        if obj.date_of_birth:
             today = timezone.now().date()
-            return today.year - obj.birth_date.year - (
-                (today.month, today.day) < (obj.birth_date.month, obj.birth_date.day)
+            return today.year - obj.date_of_birth.year - (
+                (today.month, today.day) < (obj.date_of_birth.month, obj.date_of_birth.day)
             )
         return None
     
@@ -156,7 +158,7 @@ class MemberDetailSerializer(serializers.ModelSerializer):
         model = Member
         fields = [
             'id', 'member_number', 'full_name', 'first_name', 'last_name',
-            'gender', 'birth_date', 'age', 'marital_status', 'profession',
+            'gender', 'date_of_birth', 'age', 'marital_status', 'profession',
             'national_id', 'membership_type', 'join_date', 'membership_duration',
             'emergency_contact_name', 'emergency_contact_phone', 'bio', 'photo',
             'address', 'contact_info', 'user', 'user_username',
@@ -169,10 +171,10 @@ class MemberDetailSerializer(serializers.ModelSerializer):
     
     def get_age(self, obj):
         """Calculer l'âge du membre."""
-        if obj.birth_date:
+        if obj.date_of_birth:
             today = timezone.now().date()
-            return today.year - obj.birth_date.year - (
-                (today.month, today.day) < (obj.birth_date.month, obj.birth_date.day)
+            return today.year - obj.date_of_birth.year - (
+                (today.month, today.day) < (obj.date_of_birth.month, obj.date_of_birth.day)
             )
         return None
     
@@ -213,7 +215,7 @@ class MemberCreateUpdateSerializer(serializers.ModelSerializer):
     class Meta:
         model = Member
         fields = [
-            'first_name', 'last_name', 'gender', 'birth_date', 
+            'first_name', 'last_name', 'gender', 'date_of_birth', 
             'marital_status', 'profession', 'national_id',
             'membership_type', 'emergency_contact_name', 
             'emergency_contact_phone', 'bio', 'photo',

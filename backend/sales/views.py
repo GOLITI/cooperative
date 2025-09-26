@@ -10,6 +10,8 @@ from django.db.models import Sum, Count, Q, Avg
 from django.utils import timezone
 from datetime import datetime, timedelta
 from accounts.permissions import CanViewSales, CanManageSales
+from drf_spectacular.utils import extend_schema, extend_schema_view, OpenApiParameter, OpenApiExample
+from drf_spectacular.types import OpenApiTypes
 
 from .models import Customer, Sale, SaleLine, SalePayment
 from .serializers import (
@@ -19,9 +21,24 @@ from .serializers import (
 )
 
 
+@extend_schema_view(
+    list=extend_schema(
+        summary="Liste des clients",
+        description="Récupère la liste des clients avec leurs informations de contact et historique d'achats.",
+        tags=['ventes']
+    ),
+    create=extend_schema(
+        summary="Créer un client",
+        description="Enregistre un nouveau client dans le système de vente.",
+        tags=['ventes']
+    )
+)
 class CustomerViewSet(viewsets.ModelViewSet):
     """
-    ViewSet pour la gestion des clients.
+    👤 **Gestion des Clients**
+    
+    CRUD pour la gestion des clients de la coopérative.
+    Inclut les membres et clients externes.
     """
     queryset = Customer.objects.all()
     permission_classes = [IsAuthenticated, CanViewSales]

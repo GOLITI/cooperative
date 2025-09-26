@@ -230,15 +230,131 @@ REST_FRAMEWORK = {
 # Spectacular settings (Documentation API)
 SPECTACULAR_SETTINGS = {
     'TITLE': 'API Système de Gestion des Coopératives',
-    'DESCRIPTION': 'API REST pour la gestion des coopératives agricoles et artisanales',
+    'DESCRIPTION': '''
+    ## 🏢 API REST Complète pour la Gestion des Coopératives
+    
+    Cette API fournit un système complet de gestion pour les coopératives agricoles et artisanales, incluant :
+    
+    ### 🔐 **Authentification & Membres**
+    - Gestion des utilisateurs avec rôles et permissions
+    - Système de membres avec types d'adhésion
+    - Authentification par token sécurisée
+    
+    ### 📦 **Inventaire & Produits**  
+    - Gestion des produits et catégories
+    - Suivi des stocks en temps réel
+    - Mouvements d'entrée et sortie
+    
+    ### 💰 **Ventes & Commerce**
+    - Système de vente complet
+    - Gestion des clients
+    - Paiements et facturation
+    
+    ### 🏦 **Finance & Comptabilité**
+    - Comptabilité en partie double
+    - Prêts aux membres avec workflow
+    - Épargne avec calcul d'intérêts
+    - Rapports financiers automatisés
+    
+    ### 📊 **Fonctionnalités Avancées**
+    - Statistiques et analyses
+    - Filtres et recherches avancées
+    - Pagination automatique
+    - Validation des données
+    
+    ---
+    
+    **🔑 Authentification requise :** `Authorization: Token your_token_here`
+    
+    **📝 GitHub :** [https://github.com/GOLITI/cooperative](https://github.com/GOLITI/cooperative)
+    ''',
     'VERSION': '1.0.0',
     'SERVE_INCLUDE_SCHEMA': False,
+    'CONTACT': {
+        'name': 'Équipe de Développement Coopérative',
+        'url': 'https://github.com/GOLITI/cooperative',
+        'email': 'dev@cooperative.com'
+    },
+    'LICENSE': {
+        'name': 'MIT License',
+        'url': 'https://opensource.org/licenses/MIT'
+    },
+    'EXTERNAL_DOCS': {
+        'description': 'Documentation complète sur GitHub',
+        'url': 'https://github.com/GOLITI/cooperative/blob/main/README.md'
+    },
+    'TAGS': [
+        {
+            'name': 'authentification',
+            'description': '🔐 Gestion des utilisateurs, login/logout, tokens'
+        },
+        {
+            'name': 'membres',
+            'description': '👥 CRUD membres, types adhésion, cotisations'
+        },
+        {
+            'name': 'inventaire',
+            'description': '📦 Produits, catégories, stock, mouvements'
+        },
+        {
+            'name': 'ventes',
+            'description': '💰 Ventes, clients, lignes, paiements'
+        },
+        {
+            'name': 'finance',
+            'description': '🏦 Comptabilité, prêts, épargne, transactions'
+        }
+    ],
+    'SERVERS': [
+        {
+            'url': 'http://localhost:8002',
+            'description': 'Serveur de développement local'
+        },
+        {
+            'url': 'https://api.cooperative.com',
+            'description': 'Serveur de production'
+        }
+    ],
+    'SECURITY': [
+        {
+            'tokenAuth': []
+        }
+    ],
+    'COMPONENTS': {
+        'securitySchemes': {
+            'tokenAuth': {
+                'type': 'apiKey',
+                'in': 'header',
+                'name': 'Authorization',
+                'description': 'Format: `Token your_token_here`'
+            }
+        }
+    },
+    'SWAGGER_UI_SETTINGS': {
+        'deepLinking': True,
+        'persistAuthorization': True,
+        'displayOperationId': True,
+        'defaultModelsExpandDepth': 2,
+        'defaultModelExpandDepth': 2,
+    },
+    'REDOC_UI_SETTINGS': {
+        'hideDownloadButton': False,
+        'theme': {
+            'colors': {
+                'primary': {
+                    'main': '#1976d2'
+                }
+            }
+        }
+    }
 }
 
 # CORS settings pour React
 CORS_ALLOWED_ORIGINS = [
-    "http://localhost:3000",  # React dev server
+    "http://localhost:3000",  # Create React App
     "http://127.0.0.1:3000",
+    "http://localhost:5173",  # Vite React dev server
+    "http://127.0.0.1:5173",
 ]
 
 CORS_ALLOW_CREDENTIALS = True

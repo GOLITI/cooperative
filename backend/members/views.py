@@ -8,6 +8,8 @@ from django_filters.rest_framework import DjangoFilterBackend
 from django.db.models import Count, Sum, Avg, Q
 from django.utils import timezone
 from datetime import timedelta
+from drf_spectacular.utils import extend_schema, extend_schema_view, OpenApiParameter, OpenApiExample
+from drf_spectacular.types import OpenApiTypes
 
 from .models import (
     Member, MembershipType, MemberPayment, MembershipHistory
@@ -22,9 +24,62 @@ from accounts.permissions import (
 )
 
 
+@extend_schema_view(
+    list=extend_schema(
+        summary="Liste des types d'adhésion",
+        description="Récupère la liste complète des types d'adhésion disponibles avec leurs tarifs et conditions.",
+        tags=['membres'],
+        examples=[
+            OpenApiExample(
+                'Réponse type',
+                value={
+                    "count": 3,
+                    "results": [
+                        {
+                            "id": 1,
+                            "name": "Membre ordinaire",
+                            "description": "Adhésion standard pour les membres individuels",
+                            "annual_fee": 25000.00,
+                            "voting_rights": True,
+                            "loan_eligibility": True
+                        }
+                    ]
+                }
+            )
+        ]
+    ),
+    create=extend_schema(
+        summary="Créer un type d'adhésion",
+        description="Crée un nouveau type d'adhésion avec ses conditions et tarifs.",
+        tags=['membres']
+    ),
+    retrieve=extend_schema(
+        summary="Détail d'un type d'adhésion",
+        description="Récupère les détails complets d'un type d'adhésion spécifique.",
+        tags=['membres']
+    ),
+    update=extend_schema(
+        summary="Modifier un type d'adhésion",
+        description="Modifie complètement un type d'adhésion existant.",
+        tags=['membres']
+    ),
+    partial_update=extend_schema(
+        summary="Modification partielle d'un type d'adhésion",
+        description="Modifie partiellement un type d'adhésion existant.",
+        tags=['membres']
+    ),
+    destroy=extend_schema(
+        summary="Supprimer un type d'adhésion",
+        description="Supprime définitivement un type d'adhésion (si aucun membre n'y est associé).",
+        tags=['membres']
+    )
+)
 class MembershipTypeViewSet(viewsets.ModelViewSet):
     """
-    ViewSet pour la gestion des types d'adhésion.
+    🎫 **Types d'Adhésion**
+    
+    Gestion des différents types d'adhésion disponibles dans la coopérative.
+    Chaque type définit les droits, obligations et tarifs des membres.
     """
     queryset = MembershipType.objects.all()
     serializer_class = MembershipTypeSerializer
@@ -59,9 +114,76 @@ class MembershipTypeViewSet(viewsets.ModelViewSet):
         return super().destroy(request, *args, **kwargs)
 
 
+@extend_schema_view(
+    list=extend_schema(
+        summary="Liste des membres",
+        description="Récupère la liste paginée des membres avec leurs informations principales.",
+        tags=['membres'],
+        parameters=[
+            OpenApiParameter(
+                name='membership_type',
+                type=OpenApiTypes.INT,
+                location=OpenApiParameter.QUERY,
+                description='Filtrer par type d\'adhésion (ID)'
+            ),
+            OpenApiParameter(
+                name='gender',
+                type=OpenApiTypes.STR,
+                location=OpenApiParameter.QUERY,
+                description='Filtrer par genre (M/F)'
+            ),
+            OpenApiParameter(
+                name='is_active',
+                type=OpenApiTypes.BOOL,
+                location=OpenApiParameter.QUERY,
+                description='Filtrer par statut actif'
+            ),
+            OpenApiParameter(
+                name='search',
+                type=OpenApiTypes.STR,
+                location=OpenApiParameter.QUERY,
+                description='Recherche par nom, prénom ou numéro'
+            )
+        ]
+    ),
+    create=extend_schema(
+        summary="Créer un nouveau membre",
+        description="Enregistre un nouveau membre dans la coopérative avec ses informations complètes.",
+        tags=['membres']
+    ),
+    retrieve=extend_schema(
+        summary="Détail d'un membre",
+        description="Récupère toutes les informations détaillées d'un membre spécifique.",
+        tags=['membres']
+    ),
+    update=extend_schema(
+        summary="Modifier un membre",
+        description="Modifie complètement les informations d'un membre existant.",
+        tags=['membres']
+    ),
+    partial_update=extend_schema(
+        summary="Modification partielle d'un membre",
+        description="Modifie partiellement les informations d'un membre.",
+        tags=['membres']
+    ),
+    destroy=extend_schema(
+        summary="Supprimer un membre",
+        description="Supprime définitivement un membre (désactive plutôt que supprimer).",
+        tags=['membres']
+    )
+)
 class MemberViewSet(viewsets.ModelViewSet):
     """
-    ViewSet pour la gestion des membres.
+    👥 **Gestion des Membres**
+    
+    CRUD complet pour la gestion des membres de la coopérative.
+    Inclut les informations personnelles, adhésion, paiements et historique.
+    
+    **Fonctionnalités :**
+    - ✅ Recherche et filtrage avancés
+    - 📊 Statistiques et analyses
+    - 💰 Gestion des paiements
+    - 📋 Historique des adhésions
     """
     queryset = Member.objects.select_related(
         'membership_type', 'address', 'contact_info', 'user'
@@ -74,7 +196,7 @@ class MemberViewSet(viewsets.ModelViewSet):
         'gender': ['exact'],
         'is_active': ['exact'],
         'join_date': ['gte', 'lte'],
-        'birth_date': ['gte', 'lte']
+        'date_of_birth': ['gte', 'lte']
     }
     search_fields = [
         'first_name', 'last_name', 'member_number', 'national_id',
@@ -122,17 +244,51 @@ class MemberViewSet(viewsets.ModelViewSet):
         
         if min_age:
             min_birth_date = timezone.now().date() - timedelta(days=int(min_age) * 365)
-            queryset = queryset.filter(birth_date__lte=min_birth_date)
+            queryset = queryset.filter(date_of_birth__lte=min_birth_date)
         
         if max_age:
             max_birth_date = timezone.now().date() - timedelta(days=int(max_age) * 365)
-            queryset = queryset.filter(birth_date__gte=max_birth_date)
+            queryset = queryset.filter(date_of_birth__gte=max_birth_date)
         
         return queryset
     
+    @extend_schema(
+        summary="Statistiques des membres",
+        description="""
+        Récupère les statistiques complètes des membres de la coopérative.
+        
+        **Données incluses :**
+        - Nombre total de membres (actifs/inactifs)
+        - Nouveaux membres du mois
+        - Répartition par type d'adhésion
+        - Répartition par genre et âge
+        - Historique mensuel des adhésions
+        """,
+        tags=['membres'],
+        examples=[
+            OpenApiExample(
+                'Réponse statistiques',
+                value={
+                    "total_members": 150,
+                    "active_members": 142,
+                    "inactive_members": 8,
+                    "new_members_this_month": 5,
+                    "members_by_type": {
+                        "Membre ordinaire": 120,
+                        "Membre fondateur": 30
+                    },
+                    "members_by_gender": {
+                        "M": 85,
+                        "F": 65
+                    },
+                    "average_age": 35.5
+                }
+            )
+        ]
+    )
     @action(detail=False, methods=['get'])
     def stats(self, request):
-        """Statistiques des membres."""
+        """📊 Statistiques complètes des membres."""
         # Statistiques de base
         total_members = Member.objects.count()
         active_members = Member.objects.filter(is_active=True).count()
@@ -162,7 +318,7 @@ class MemberViewSet(viewsets.ModelViewSet):
         
         # Âge moyen
         average_age = Member.objects.filter(
-            is_active=True, birth_date__isnull=False
+            is_active=True, date_of_birth__isnull=False
         ).aggregate(
             avg_age=Avg(
                 timezone.now().year - 
@@ -348,10 +504,9 @@ class MembershipHistoryViewSet(viewsets.ReadOnlyModelViewSet):
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
     filterset_fields = {
         'member': ['exact'],
-        'membership_type': ['exact'],
-        'status': ['exact'],
-        'start_date': ['gte', 'lte'],
-        'end_date': ['gte', 'lte', 'isnull']
+        'old_type': ['exact'],
+        'new_type': ['exact'],
+        'change_date': ['gte', 'lte']
     }
     search_fields = [
         'member__first_name', 'member__last_name', 'member__member_number',
