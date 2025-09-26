@@ -1,173 +1,199 @@
-# Coopérative - Système de Gestion Coopérative
+# 🏦 Système de Gestion Coopérative
 
-## 🎯 Description
+Un système complet de gestion pour coopératives agricoles développé avec Django REST Framework et React + TypeScript.
 
-Système de gestion complet pour une coopérative, développé avec Django REST Framework et React. Cette application permet la gestion des membres, de l'inventaire, des ventes et des finances d'une coopérative.
+## ✨ Fonctionnalités Implémentées
 
-## 🚀 Fonctionnalités Implémentées
+### 🔧 API Backend Django REST Framework
+- **🔐 Authentification et Autorisation** : Système complet avec tokens, rôles et permissions granulaires
+- **👥 Gestion des Membres** : CRUD complet, profils utilisateurs, historique d'adhésion, rôles
+- **📦 Inventaire** : Gestion des produits, catégories, stock en temps réel, alertes de stock bas
+- **🛒 Ventes** : Commandes, factures, gestion des clients, suivi des livraisons
+- **💰 Finance** : Transactions, comptes bancaires, prêts, épargne, calculs automatiques
+- **📊 Rapports** : Système avancé de génération de rapports personnalisables
+- **📚 Documentation API** : Swagger/OpenAPI intégré avec exemples et schémas
 
-### ✅ Authentification et Sécurité
-- 🔐 Système d'authentification JWT complet
-- 👥 Gestion des rôles et permissions granulaires
-- 🔑 Endpoints : login, logout, registration, refresh tokens
-- 🛡️ Permissions basées sur les rôles (Admin, Manager, Member, Viewer)
+### 🌐 Interface Web React + TypeScript
+- **⚡ Architecture moderne** : Vite, Material-UI, React Router, Tanstack Query
+- **🔒 Authentification sécurisée** : Gestion des sessions, routes protégées, tokens persistants
+- **📱 Interface responsive** : Design adaptatif mobile/desktop avec thème coopératif
+- **📈 Tableaux de bord** : Statistiques en temps réel, métriques financières, alertes
+- **🧩 Navigation modulaire** : Accès à tous les modules depuis une interface unifiée
 
-### ✅ Gestion des Membres
-- 👤 CRUD complet des membres
-- 📋 Types d'adhésion configurables
-- 💳 Gestion des cotisations et paiements
-- 📊 Statistiques et rapports des membres
-- 🔍 Recherche et filtrage avancés
+### 🔧 Infrastructure et Outils
+- **🌍 API REST complète** : Plus de 50 endpoints documentés
+- **🔄 CORS configuré** : Communication frontend-backend sécurisée
+- **🧪 Comptes de test** : `admin/admin` et `demo/demo123` pour démonstration
+- **📖 Documentation interactive** : Interface Swagger accessible
 
-### ✅ Gestion de l'Inventaire
-- 📦 Gestion des produits et catégories
-- 📏 Unités de mesure configurables
-- 📊 Suivi des mouvements de stock
-- 💹 Calculs automatiques des quantités
-- ⚠️ Système d'alertes de stock
-- 📈 Statistiques temps réel
+## 🚀 URLs d'accès
 
-## 🛠️ Technologies Utilisées
+- **Frontend React** : http://localhost:5173/
+- **Backend Django** : http://127.0.0.1:8000/
+- **Documentation API** : http://127.0.0.1:8000/swagger/
+- **Admin Django** : http://127.0.0.1:8000/admin/
 
-### Backend
-- **Django 5.2.6** - Framework web principal
-- **Django REST Framework** - API REST
-- **JWT Authentication** - Authentification sécurisée
-- **PostgreSQL** - Base de données (compatible SQLite pour dev)
-- **Python 3.11+** - Langage de programmation
+## 📋 Prérequis
 
-### Frontend (À venir)
-- **React 18** - Interface utilisateur
-- **TypeScript** - Typage statique
-- **Tailwind CSS** - Framework CSS
-- **React Query** - Gestion d'état serveur
+- Python 3.8+
+- Node.js 16+
+- SQLite (par défaut) ou PostgreSQL
 
-## 📁 Structure du Projet
+## ⚡ Installation Rapide
 
-```
-cooperative/
-├── backend/                 # Application Django
-│   ├── accounts/           # Authentification et utilisateurs
-│   ├── members/            # Gestion des membres
-│   ├── inventory/          # Gestion de l'inventaire
-│   ├── cooperative_management/ # Configuration principale
-│   └── manage.py
-├── frontend/               # Application React (à venir)
-└── docs/                   # Documentation
-```
-
-## 🔧 Installation et Configuration
-
-### Prérequis
-- Python 3.11+
-- PostgreSQL (optionnel, SQLite par défaut)
-- Git
-
-### Installation
-
-1. **Cloner le repository**
+### 1. Clone du repository
 ```bash
 git clone https://github.com/GOLITI/cooperative.git
 cd cooperative
 ```
 
-2. **Créer l'environnement virtuel**
+### 2. Configuration Backend Django
 ```bash
+# Création de l'environnement virtuel
 python -m venv venv
 source venv/bin/activate  # Linux/Mac
 # ou
-venv\Scripts\activate     # Windows
-```
+venv\Scripts\activate  # Windows
 
-3. **Installer les dépendances**
-```bash
-cd backend
+# Installation des dépendances
 pip install -r requirements.txt
-```
 
-4. **Configuration de la base de données**
-```bash
+# Configuration de la base de données
+cd backend
 python manage.py migrate
-python manage.py collectstatic
-```
+python manage.py loaddata fixtures/*.json
 
-5. **Créer un superutilisateur**
-```bash
-python manage.py createsuperuser
-```
+# Création des utilisateurs de test
+cd ..
+python create_test_users.py
 
-6. **Lancer le serveur de développement**
-```bash
+# Démarrage du serveur Django
+cd backend
 python manage.py runserver
 ```
 
-## 📚 API Endpoints
-
-### 🔐 Authentification
-- `POST /api/auth/login/` - Connexion
-- `POST /api/auth/logout/` - Déconnexion
-- `POST /api/auth/register/` - Inscription
-- `POST /api/auth/token/refresh/` - Actualiser le token
-
-### 👥 Membres
-- `GET/POST /api/members/members/` - Liste/Création des membres
-- `GET/PUT/DELETE /api/members/members/{id}/` - Détail/Modification/Suppression
-- `GET /api/members/membership-types/` - Types d'adhésion
-- `GET /api/members/payments/` - Paiements des membres
-
-### 📦 Inventaire
-- `GET/POST /api/inventory/products/` - Produits
-- `GET/POST /api/inventory/categories/` - Catégories
-- `GET/POST /api/inventory/units/` - Unités de mesure
-- `GET/POST /api/inventory/stock-movements/` - Mouvements de stock
-- `GET /api/inventory/products/stats/` - Statistiques
-- `GET /api/inventory/products/alerts/` - Alertes de stock
-
-## 🧪 Tests
-
-### Exécuter les tests
+### 3. Configuration Frontend React
 ```bash
-# Tests unitaires Django
-python manage.py test
+# Dans un nouveau terminal
+cd frontend-react
 
-# Tests des endpoints API
-python test_final.py
+# Installation des dépendances Node.js
+npm install
+
+# Démarrage du serveur de développement
+npm run dev
 ```
 
-## 📋 Roadmap
+## 👤 Comptes de Test
 
-### 🔄 En cours de développement
-- [ ] API des ventes et clients
-- [ ] API financière (comptabilité)
-- [ ] Interface React frontend
-- [ ] Tableau de bord analytics
+| Utilisateur | Mot de passe | Rôle | Permissions |
+|-------------|--------------|------|-------------|
+| `admin` | `admin` | Administrateur | Accès complet à tous les modules |
+| `demo` | `demo123` | Utilisateur | Accès limité pour démonstration |
 
-### 🎯 Fonctionnalités futures
-- [ ] Rapports PDF automatisés
-- [ ] Notifications en temps réel
-- [ ] Module de communication interne
-- [ ] Application mobile
+## 🏗️ Architecture
+
+```
+cooperative/
+├── backend/                 # API Django REST Framework
+│   ├── cooperative/         # Configuration principale
+│   ├── accounts/            # Authentification et utilisateurs
+│   ├── members/             # Gestion des membres
+│   ├── inventory/           # Gestion de l'inventaire
+│   ├── sales/               # Gestion des ventes
+│   ├── finance/             # Gestion financière
+│   └── reporting/           # Système de rapports
+├── frontend-react/          # Application React + TypeScript
+│   ├── src/
+│   │   ├── components/      # Composants réutilisables
+│   │   ├── pages/           # Pages de l'application
+│   │   ├── contexts/        # Contextes React (Auth, etc.)
+│   │   └── services/        # Services API
+└── docs/                    # Documentation
+```
+
+## 📊 Modules Disponibles
+
+### 1. 👥 Gestion des Membres
+- Inscription et profils des membres
+- Gestion des adhésions et cotisations
+- Historique des activités
+- Rôles et permissions personnalisés
+
+### 2. 📦 Inventaire
+- Catalogue de produits agricoles
+- Gestion des catégories et unités
+- Suivi des stocks en temps réel
+- Alertes de réapprovisionnement
+
+### 3. 🛒 Ventes
+- Création de commandes
+- Gestion des clients
+- Facturation automatique
+- Suivi des livraisons
+
+### 4. 💰 Finance
+- Comptes bancaires multiples
+- Transactions automatisées
+- Système de prêts aux membres
+- Comptes d'épargne collectifs
+
+### 5. 📊 Rapports
+- Rapports financiers personnalisables
+- Statistiques des ventes
+- Analyses des membres
+- Exportation en PDF/Excel
+
+## 🔧 API Endpoints Principaux
+
+| Module | Endpoints | Description |
+|--------|-----------|-------------|
+| Auth | `/api/auth/login/`, `/api/auth/me/` | Authentification |
+| Members | `/api/members/` | CRUD des membres |
+| Inventory | `/api/inventory/products/` | Gestion produits |
+| Sales | `/api/sales/orders/` | Commandes |
+| Finance | `/api/finance/accounts/` | Comptes financiers |
+| Reports | `/api/reports/templates/` | Rapports |
+
+## 🧪 Tests et Développement
+
+```bash
+# Tests backend
+cd backend
+python manage.py test
+
+# Linting frontend
+cd frontend-react
+npm run lint
+
+# Build de production
+npm run build
+```
+
+## 📈 Prochaines Fonctionnalités
+
+- [ ] **API des Notifications** : Système d'alertes en temps réel
+- [ ] **Tests Automatisés** : Suite complète de tests unitaires et d'intégration
+- [ ] **Déploiement Docker** : Containerisation pour production
+- [ ] **Progressive Web App** : Application mobile native
+- [ ] **Intégrations** : APIs externes (banques, comptabilité)
 
 ## 🤝 Contribution
 
-Les contributions sont les bienvenues ! Merci de :
-
 1. Fork le projet
-2. Créer une branche feature (`git checkout -b feature/AmazingFeature`)
-3. Commit les changements (`git commit -m 'Add some AmazingFeature'`)
-4. Push vers la branche (`git push origin feature/AmazingFeature`)
-5. Ouvrir une Pull Request
+2. Créez une branche pour votre fonctionnalité
+3. Committez vos changements
+4. Pushez vers la branche
+5. Ouvrez une Pull Request
 
-## 📄 License
+## 📄 Licence
 
-Ce projet est sous licence MIT. Voir le fichier `LICENSE` pour plus de détails.
+Ce projet est sous licence MIT. Voir le fichier [LICENSE](LICENSE) pour plus de détails.
 
-## 📞 Contact
+## 👨‍💻 Auteur
 
-- **Développeur** : Marc GOLITI
-- **Email** : [votre-email@exemple.com]
-- **Projet** : [https://github.com/GOLITI/cooperative](https://github.com/GOLITI/cooperative)
+**GOLITI** - [GitHub](https://github.com/GOLITI)
 
 ---
 
-⭐ Si ce projet vous plaît, n'hésitez pas à lui donner une étoile !
+**🚀 Système opérationnel et prêt à l'utilisation !**
