@@ -36,7 +36,7 @@ class CustomerViewSet(viewsets.ModelViewSet):
         
         # Statistiques
         total_purchases = sales.aggregate(
-            total_amount=Sum('final_amount'),
+            total_amount=Sum('total_amount'),
             total_orders=Count('id')
         )
         
@@ -52,18 +52,18 @@ class CustomerViewSet(viewsets.ModelViewSet):
 
 class SaleViewSet(viewsets.ModelViewSet):
     """ViewSet pour la gestion des ventes."""
-    queryset = Sale.objects.select_related('customer', 'member', 'cashier').prefetch_related('items__product')
+    queryset = Sale.objects.select_related('customer').prefetch_related('lines__product')
     serializer_class = SaleSerializer
     permission_classes = [IsAuthenticated]
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
-    filterset_fields = ['status', 'payment_method', 'cashier']
-    search_fields = ['sale_number', 'customer__name', 'member__user__first_name', 'member__user__last_name']
-    ordering_fields = ['sale_date', 'final_amount']
+    filterset_fields = ['status']
+    search_fields = ['sale_number', 'customer__name']
+    ordering_fields = ['sale_date', 'total_amount']
     ordering = ['-sale_date']
     
     def perform_create(self, serializer):
-        """Créer une vente avec le caissier actuel."""
-        serializer.save(cashier=self.request.user)
+        """Créer une vente avec l'utilisateur actuel."""
+        serializer.save(salesperson=self.request.user)
     
     @action(detail=False, methods=['get'])
     def statistics(self, request):
@@ -85,19 +85,19 @@ class SaleViewSet(viewsets.ModelViewSet):
         sales = self.queryset.filter(
             sale_date__date__gte=start_date,
             sale_date__date__lte=end_date,
-            status='completed'
+            status__in=['confirmed', 'delivered']
         )
         
         return sales.aggregate(
-            total_sales=Sum('final_amount') or Decimal('0'),
+            total_sales=Sum('total_amount') or Decimal('0'),
             total_orders=Count('id'),
-            average_order=Sum('final_amount') / Count('id') if Count('id') > 0 else Decimal('0')
+            average_order=Sum('total_amount') / Count('id') if Count('id') > 0 else Decimal('0')
         )
     
     def _get_total_stats(self):
         """Statistiques totales."""
-        return self.queryset.filter(status='completed').aggregate(
-            total_sales=Sum('final_amount') or Decimal('0'),
+        return self.queryset.filter(status__in=['confirmed', 'delivered']).aggregate(
+            total_sales=Sum('total_amount') or Decimal('0'),
             total_orders=Count('id')
         )
     

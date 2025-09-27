@@ -7,6 +7,10 @@ import MainLayout from './components/common/MainLayout';
 import LoginPage from './pages/auth/LoginPage';
 import RegisterPage from './pages/auth/RegisterPage';
 import DashboardPage from './pages/dashboard/DashboardPage';
+import MembersPage from './pages/members/MembersPage';
+import InventoryPage from './pages/inventory/InventoryPage';
+import SalesPage from './pages/sales/SalesPage';
+import ApiTestPage from './pages/debug/ApiTestPage';
 
 // Thème Material-UI personnalisé
 const theme = createTheme({
@@ -103,7 +107,7 @@ function App() {
             <Route path="/members" element={
               <ProtectedRoute>
                 <MainLayout>
-                  <ComingSoonPage title="Gestion des Membres" />
+                  <MembersPage />
                 </MainLayout>
               </ProtectedRoute>
             } />
@@ -111,7 +115,7 @@ function App() {
             <Route path="/inventory" element={
               <ProtectedRoute>
                 <MainLayout>
-                  <ComingSoonPage title="Gestion d'Inventaire" />
+                  <InventoryPage />
                 </MainLayout>
               </ProtectedRoute>
             } />
@@ -119,7 +123,15 @@ function App() {
             <Route path="/sales" element={
               <ProtectedRoute>
                 <MainLayout>
-                  <ComingSoonPage title="Gestion des Ventes" />
+                  <SalesPage />
+                </MainLayout>
+              </ProtectedRoute>
+            } />
+            
+            <Route path="/debug/api" element={
+              <ProtectedRoute>
+                <MainLayout>
+                  <ApiTestPage />
                 </MainLayout>
               </ProtectedRoute>
             } />

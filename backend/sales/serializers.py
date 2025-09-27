@@ -16,30 +16,29 @@ class CustomerSerializer(serializers.ModelSerializer):
 class SaleItemSerializer(serializers.ModelSerializer):
     """Serializer pour les articles d'une vente."""
     product_name = serializers.CharField(source='product.name', read_only=True)
-    total_amount = serializers.DecimalField(max_digits=12, decimal_places=2, read_only=True)
     
     class Meta:
         model = SaleItem
         fields = [
             'id', 'product', 'product_name',
-            'quantity', 'unit_price', 'discount', 'total_amount'
+            'quantity', 'unit_price', 'discount_percent', 'total'
         ]
 
 
 class SaleSerializer(serializers.ModelSerializer):
     """Serializer pour les ventes."""
-    items = SaleItemSerializer(many=True, required=False)
+    lines = SaleItemSerializer(many=True, required=False)
     customer_name = serializers.CharField(source='customer.name', read_only=True)
     
     class Meta:
         model = Sale
         fields = [
             'id', 'sale_number', 'customer', 'customer_name',
-            'sale_date', 'total_amount', 'discount',
-            'tax_amount', 'final_amount', 'payment_method', 'status',
-            'notes', 'items', 'created_at', 'updated_at'
+            'sale_date', 'subtotal', 'discount_amount', 'tax_amount', 
+            'total_amount', 'payment_status', 'status',
+            'notes', 'lines', 'created_at', 'updated_at'
         ]
-        read_only_fields = ('id', 'sale_number', 'total_amount', 'final_amount', 'created_at', 'updated_at')
+        read_only_fields = ('id', 'sale_number', 'created_at', 'updated_at')
 
 
 class PaymentSerializer(serializers.ModelSerializer):
