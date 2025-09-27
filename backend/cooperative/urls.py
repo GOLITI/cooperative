@@ -39,6 +39,7 @@ urlpatterns = [
     path('', api_root, name='api_root'),
     path('admin/', admin.site.urls),
     # API Routes
+    path('api/v1/', include('api.urls')),
     path('api/v1/core/', include('core.urls')),
     path('api/v1/members/', include('members.urls')),
     path('api/v1/inventory/', include('inventory.urls')),

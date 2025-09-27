@@ -31,17 +31,13 @@ router.register(r'family-members', FamilyMemberViewSet)
 
 # TODO: Ajouter les autres modules (inventory, sales, finance, reports)
 
+from django.urls import path
+from . import views
+
+app_name = 'api'
 urlpatterns = [
-    # API endpoints
-    path('v1/', include(router.urls)),
-    
-    # JWT Authentication
-    path('auth/login/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
-    path('auth/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
-    path('auth/verify/', TokenVerifyView.as_view(), name='token_verify'),
-    
-    # API Documentation
-    path('schema/', SpectacularAPIView.as_view(), name='schema'),
-    path('docs/', SpectacularSwaggerView.as_view(url_name='schema'), name='swagger-ui'),
-    path('redoc/', SpectacularRedocView.as_view(url_name='schema'), name='redoc'),
+    path('auth/login/', views.login_view, name='login'),
+    path('auth/register/', views.register_view, name='register'),
+    path('auth/logout/', views.logout_view, name='logout'),
+    path('auth/refresh/', views.refresh_token_view, name='refresh_token'),
 ]
